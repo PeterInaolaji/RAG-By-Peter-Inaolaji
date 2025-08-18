@@ -1,5 +1,7 @@
 streamlit
+pandas
 langchain
-transformers
+langchain-community
 faiss-cpu
 sentence-transformers
+huggingface-hub
