@@ -2,23 +2,20 @@ import streamlit as st
 import pandas as pd
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 
-# ==============================
+
 # APP SETUP
-# ==============================
-st.set_page_config(page_title="RAG By Peter Inaolaji", layout="wide")
+st.set_page_config(page_title="RAG Chatbot", layout="wide")
 
 st.title("🤖 RAG Chatbot By Peter Inaolaji")
-st.write("Upload any CSV file and ask questions using a Retrieval-Augmented Generation model.")
+st.write("This application combines Retrieval-Augmented Generation (RAG) with the power of large language models to give you accurate, context-aware answers based on your documents.")
 
-# ==============================
 # Helper function to build RAG
-# ==============================
 def build_rag_pipeline(df: pd.DataFrame):
     df.columns = [col.strip() for col in df.columns]
 
@@ -50,9 +47,7 @@ def build_rag_pipeline(df: pd.DataFrame):
 
     return qa_chain
 
-# ==============================
 # File Upload Section
-# ==============================
 uploaded_file = st.file_uploader("📂 Upload a CSV file", type="csv")
 
 if uploaded_file:
@@ -68,9 +63,8 @@ if uploaded_file:
 
     qa_chain = get_pipeline(df)
 
-    # ==============================
+  
     # Chatbox Interface
-    # ==============================
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -94,4 +88,4 @@ if uploaded_file:
         st.session_state.messages.append({"role": "assistant", "content": answer})
 
 else:
-    st.info("👆 Please upload a CSV file to begin.")
+    st.info(" Please upload a CSV file to begin.")
