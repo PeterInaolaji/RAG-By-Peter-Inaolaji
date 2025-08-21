@@ -3,5 +3,9 @@ pandas
 langchain
 langchain-community
 faiss-cpu
+transformers
 sentence-transformers
-huggingface-hub
+torch
+python-dotenv
+openpyxl        # Excel file support (.xlsx)
+PyPDF2          # PDF file support (.pdf)
