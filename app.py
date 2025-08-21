@@ -7,15 +7,42 @@ from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
-
+import io
+from PyPDF2 import PdfReader
 
 # APP SETUP
 st.set_page_config(page_title="RAG Chatbot", layout="wide")
 
 st.title("🤖 RAG Chatbot By Peter Inaolaji")
-st.write("This application combines Retrieval-Augmented Generation (RAG) with the power of large language models to give you accurate, context-aware answers based on your documents.")
+st.write(
+    "This application combines Retrieval-Augmented Generation (RAG) with the power of large language models "
+    "to give you accurate, context-aware answers based on your documents."
+)
 
-# Helper function to build RAG
+# --------- Helper Functions ----------
+
+def load_file(uploaded_file):
+    """Handles multiple file types: CSV, Excel, TXT, PDF"""
+    file_type = uploaded_file.name.split(".")[-1].lower()
+
+    if file_type == "csv":
+        return pd.read_csv(uploaded_file)
+    elif file_type in ["xls", "xlsx"]:
+        return pd.read_excel(uploaded_file)
+    elif file_type == "txt":
+        text = uploaded_file.read().decode("utf-8")
+        return pd.DataFrame({"content": text.splitlines()})
+    elif file_type == "pdf":
+        pdf_reader = PdfReader(uploaded_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return pd.DataFrame({"content": text.splitlines()})
+    else:
+        st.error("❌ Unsupported file format.")
+        return None
+
+
 def build_rag_pipeline(df: pd.DataFrame):
     df.columns = [col.strip() for col in df.columns]
 
@@ -47,45 +74,58 @@ def build_rag_pipeline(df: pd.DataFrame):
 
     return qa_chain
 
-# File Upload Section
-uploaded_file = st.file_uploader("📂 Upload a CSV file", type="csv")
+
+# --------- File Upload Section ----------
+uploaded_file = st.file_uploader("📂 Upload a file", type=["csv", "xls", "xlsx", "txt", "pdf"])
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.success("✅ Data loaded successfully!")
-    st.write("Here are the first 5 rows of your data:")
-    st.dataframe(df.head())
+    df = load_file(uploaded_file)
+    if df is not None:
+        st.success("✅ Data loaded successfully!")
+        st.write("Here are the first 5 rows of your data:")
+        st.dataframe(df.head())
 
-    # Cache RAG pipeline per uploaded dataset
-    @st.cache_resource
-    def get_pipeline(dataframe):
-        return build_rag_pipeline(dataframe)
+        # Cache RAG pipeline per uploaded dataset
+        @st.cache_resource
+        def get_pipeline(dataframe):
+            return build_rag_pipeline(dataframe)
 
-    qa_chain = get_pipeline(df)
+        qa_chain = get_pipeline(df)
 
-  
-    # Chatbox Interface
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+        # --------- Chatbox Interface ----------
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
 
-    # Display chat history
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        # Display chat history
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
 
-    # User input
-    if query := st.chat_input("Ask me anything about your dataset..."):
-        # Display user message
-        st.chat_message("user").markdown(query)
-        st.session_state.messages.append({"role": "user", "content": query})
+        # User input
+        if query := st.chat_input("Ask me anything about your dataset..."):
+            # Display user message
+            st.chat_message("user").markdown(query)
+            st.session_state.messages.append({"role": "user", "content": query})
 
-        # Get RAG answer
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                result = qa_chain.invoke(query)
-                answer = result["result"] if isinstance(result, dict) else result
-                st.markdown(answer)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+            # Get RAG answer
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    result = qa_chain.invoke(query)
+                    answer = result["result"] if isinstance(result, dict) else result
+                    st.markdown(answer)
+            st.session_state.messages.append({"role": "assistant", "content": answer})
+
+        # --------- Export Chat History ----------
+        if st.session_state.messages:
+            chat_text = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in st.session_state.messages])
+            buffer = io.BytesIO(chat_text.encode("utf-8"))
+
+            st.download_button(
+                label="Download Chat History",
+                data=buffer,
+                file_name="Chat_history.txt",
+                mime="text/plain"
+            )
 
 else:
-    st.info(" Please upload a CSV file to begin.")
+    st.info(" Please upload a file (CSV, Excel, TXT, or PDF) to begin.")
